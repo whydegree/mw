@@ -1,0 +1,81 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import subprocess
+
+VIM_UNDO_DIR = '/home/serban/.vim/vimundo/'
+
+def do_move_file(source, target):
+    move = 1
+    if os.path.exists(target):
+        print(f'{target} already exists.')
+        done = False
+        while not done:
+            ans = input('Overwrite? (y/n) ').lower()
+            if ans == 'y' or ans == 'yes':
+                done = True
+                move = 2
+            elif ans == 'n' or ans == 'no':
+                done = True
+                move = 0
+
+    if move != 0: subprocess.call(['mv', source, target])
+    return move
+
+def moveFile(source, target):
+    if os.path.isdir(target):
+        target = target + os.path.basename(source)
+
+    sourceVimundo = VIM_UNDO_DIR + source.replace('/', '%')
+    targetVimundo = VIM_UNDO_DIR + target.replace('/', '%')
+    if not os.path.isfile(sourceVimundo):
+        print(f'{source} does not have a vimundo file. Use "mv {source} {target}" instead.')
+        return
+
+    ans = do_move_file(source, target)
+    if ans == 1:
+        do_move_file(sourceVimundo, targetVimundo)
+    elif ans == 2:
+        subprocess.call(['mv', sourceVimundo, targetVimundo])
+
+def moveDir(source, target):
+    if not os.path.exists(target):
+        sourceBase = source.replace('/', '%')
+        targetBase = target.replace('/', '%')
+        for sourceVimundo in os.listdir(VIM_UNDO_DIR):
+            if sourceBase in sourceVimundo:
+                sourceVimundo = VIM_UNDO_DIR + sourceVimundo
+                targetVimundo = sourceVimundo.replace(sourceBase, targetBase)
+                do_move_file(sourceVimundo, targetVimundo)
+    else:
+        target = target + os.path.basename(source[:-1]) + '/'
+        sourceBase = source.replace('/', '%')
+        targetBase = target.replace('/', '%')
+        for sourceVimundo in os.listdir(VIM_UNDO_DIR):
+            if sourceBase in sourceVimundo:
+                sourceVimundo = VIM_UNDO_DIR + sourceVimundo
+                targetVimundo = sourceVimundo.replace(sourceBase, targetBase)
+                do_move_file(sourceVimundo, targetVimundo)
+    subprocess.call(['mv', source, target])
+
+if __name__ == '__main__':
+    source = sys.argv[-2]
+    source = os.path.abspath(source)
+    if os.path.isdir(source): source = source + '/'
+
+    target = sys.argv[-1]
+    target = os.path.abspath(target)
+    if os.path.isdir(target): target = target + '/'
+
+    if not os.path.exists(source):
+        print(f'{source} does not exist.')
+    elif os.path.isfile(source):
+        moveFile(source, target)
+    elif os.path.isdir(target):
+        moveDir(source, target)
+    elif not os.path.exists(target):
+        target = target + '/'
+        moveDir(source, target)
+    else:
+        print(f'Try "mv {source} {target}"')
